@@ -1,0 +1,48 @@
+openapi: 3.0.0
+info:
+  title: Auth Apis
+  version: '2.0'
+servers:
+  - url: /auth/v1/
+paths:
+  /oauth/token:
+    post:
+      operationId: framework.core.auth.handle_token_request
+      summary: Returns a scoped access token .
+      security:
+        - basic: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                grant_type:
+                  type: string
+                  example: client_credentials
+              required:
+                - grant_type
+      responses:
+        200:
+          description: Successfully returned list of intel scores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: Bearer
+                  expires_in:
+                    type: integer
+                    example: 86400
+                  scope:
+                    type: string
+components:
+  securitySchemes:
+    basic:
+      type: http
+      scheme: basic
+      x-basicInfoFunc: framework.core.auth.verify_auth
