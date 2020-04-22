@@ -7,7 +7,7 @@ servers:
 paths:
   /oauth/token:
     post:
-      operationId: framework.core.auth.handle_token_request
+      operationId: framework.auth.oauth.handle_token_request
       summary: Returns a scoped access token .
       security:
         - basic: []
@@ -45,4 +45,4 @@ components:
     basic:
       type: http
       scheme: basic
-      x-basicInfoFunc: framework.core.auth.verify_auth
+      x-basicInfoFunc: framework.auth.oauth.verify_auth
