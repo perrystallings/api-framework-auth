@@ -1,0 +1,1 @@
+include framework/auth/schemas/*.yaml
