@@ -5,6 +5,8 @@ __tokens__ = dict()
 def get_audience(service_name=None) -> str:
     from framework.core.settings import get_app_settings
     app_settings = get_app_settings()
+    if service_name is None:
+        service_name = app_settings.get('service_name')
     audience = app_settings['audience_format'].format(service_name)
     return audience
 
@@ -21,7 +23,7 @@ def check_token_cache(service_name, client_id, client_secret):
     global __tokens__
     if __tokens__.get(key) is not None:
         token = __tokens__[key]['token']
-        if TOKENS[key]['expires'] > int(now.utcnow().timestamp()):
+        if __tokens__[key]['expires'] > int(now.utcnow().timestamp()):
             return token
         else:
             return None
@@ -31,11 +33,11 @@ def check_token_cache(service_name, client_id, client_secret):
 
 def cache_token(token_response, service_name, client_id, client_secret):
     from datetime import datetime
-    global TOKENS
+    global __tokens__
     now = datetime.utcnow()
     key = generate_token_key(service_name=service_name, client_id=client_id, client_secret=client_secret)
     expiration_time = int(now.timestamp() + token_response['expires_in'] * .8)
-    TOKENS[key] = dict(token=token_response['access_token'],
+    __tokens__[key] = dict(token=token_response['access_token'],
                        expires=expiration_time)
     return token_response['access_token']
 
@@ -53,54 +55,16 @@ def get_auth_keys():
     return __auth_keys__
 
 
-def decode_token(token, auth_keys):
-    from jose import jwt
-    from framework.core.settings import get_app_settings
-    import itertools
-    app_settings = get_app_settings()
-
-    unverified_header = jwt.get_unverified_header(token)
-    rsa_key = {}
-    payload = None
-    user_token = False
-    for key in auth_keys:
-        if key["kid"] == unverified_header["kid"]:
-            rsa_key = {
-                "kty": key["kty"],
-                "kid": key["kid"],
-                "use": key["use"],
-                "n": key["n"],
-                "e": key["e"]
-            }
-            break
-    if rsa_key:
-        for audience, issuer in itertools.product(app_settings['audiences'], app_settings['issuers']):
-            try:
-                payload = jwt.decode(
-                    token,
-                    rsa_key,
-                    algorithms=["RS256"],
-                    audience=audience,
-                    issuer=issuer)
-            except jwt.JWTError:
-                pass
-            else:
-                break
-        if payload['sub'].startswith('auth0'):
-            user_token = True
-    return user_token, payload
-
-
-def get_service_access_token(service_name, client_id=None, client_secret=None):
+def get_service_access_token(service_name, client_id=None, client_secret=None, refresh=False):
     from framework.core.settings import get_app_settings
     from framework.core.requests import safe_json_request
     app_settings = get_app_settings()
-    if not client_id:
+    if client_id is None or client_secret is None:
         client_id = app_settings['client_id']
-    if not client_secret:
         client_secret = app_settings['client_secret']
+
     token = check_token_cache(service_name=service_name, client_id=client_id, client_secret=client_secret)
-    if token is None:
+    if token is None or refresh:
         body = dict(
             client_id=client_id,
             client_secret=client_secret,
@@ -119,16 +83,14 @@ def get_service_access_token(service_name, client_id=None, client_secret=None):
 
 
 def get_user_scopes(user_token, service_name=None):
-    from framework.core.requests import safe_json_request, generate_oauth_headers
+    from framework.core.requests import safe_json_request
     from framework.core.settings import get_app_settings
     app_settings = get_app_settings()
     scopes = []
-    if service_name is None:
-        service_name = app_settings['service_name']
     audience = get_audience(service_name=service_name)
     status_code, js = safe_json_request(
         method='POST',
-        url="{0}{1}".format(app_settings['user_service_domain'], app_settings['validate_scopes_path']),
+        url=app_settings['user_scopes_api'],
         headers=generate_oauth_headers(
             access_token=user_token
         ),
@@ -142,19 +104,35 @@ def get_user_scopes(user_token, service_name=None):
     return " ".join(scopes)
 
 
+def generate_oauth_headers(access_token: str) -> dict:
+    """Convenience function to generate oauth stand authorization header
+
+    :param access_token: Oauth access token
+    :return: Request headers
+    """
+    return {'Authorization': 'Bearer ' + access_token}
+
+
 def verify_token(token):
     from jose import jwt
+    from framework.auth.jwt import decode_token
     from werkzeug.exceptions import Unauthorized
+    from framework.core.settings import get_app_settings
     import six
+    app_settings = get_app_settings()
     keys = get_auth_keys()
-
     if not keys:
         raise Unauthorized
     try:
-        user_token, decoded_token = decode_token(token=token, auth_keys=keys)
+        user_token, decoded_token = decode_token(
+            token=token, auth_keys=keys, audiences=app_settings['audiences'],
+            issuers=app_settings['issuers']
+        )
     except jwt.JWTError as e:
         six.raise_from(Unauthorized, e)
     else:
+        if user_token and app_settings.get('user_scopes_api'):
+            decoded_token['scope'] = get_user_scopes(user_token=token)
         return decoded_token
 
 

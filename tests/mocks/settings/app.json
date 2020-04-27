@@ -1,0 +1,14 @@
+{
+  "service_name": "test",
+  "issuer": "http://test/issuer",
+  "audience_format": "http://{0}/api",
+  "audiences": [
+    "http://test/api"
+  ],
+  "issuers": [
+    "http://test/issuer"
+  ],
+  "auth_url": "http://auth/v1/oauth/token",
+  "client_id": "test_client",
+  "client_secret": "test_secret"
+}

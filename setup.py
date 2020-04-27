@@ -2,6 +2,8 @@ import setuptools
 
 # with open("README.md", "r") as fh:
 #     long_description = fh.read()
+with open('requirements.txt') as f:
+    requirements = f.readlines()
 
 setuptools.setup(
     name="adara-framework-auth",  # Replace with your own username
@@ -13,8 +15,9 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     include_package_data=True,
     url="https://bitbucket.org/adarainc/framework-auth",
-
-    packages=['framework.auth'],
+    setup_requires=['pytest-runner'],
+    test_requires=requirements,
+    packages=setuptools.find_namespace_packages(include=['framework.*']),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
