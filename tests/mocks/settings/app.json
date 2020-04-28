@@ -9,6 +9,8 @@
     "http://test/issuer"
   ],
   "auth_url": "http://auth/v1/oauth/token",
+  "auth_keys_url": "http://auth/keys.json",
   "client_id": "test_client",
-  "client_secret": "test_secret"
+  "client_secret": "test_secret",
+  "user_scopes_api": "http://user/v1/scopes"
 }

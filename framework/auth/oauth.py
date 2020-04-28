@@ -38,7 +38,7 @@ def cache_token(token_response, service_name, client_id, client_secret):
     key = generate_token_key(service_name=service_name, client_id=client_id, client_secret=client_secret)
     expiration_time = int(now.timestamp() + token_response['expires_in'] * .8)
     __tokens__[key] = dict(token=token_response['access_token'],
-                       expires=expiration_time)
+                           expires=expiration_time)
     return token_response['access_token']
 
 
@@ -49,7 +49,7 @@ def get_auth_keys():
     global __auth_keys__
     if __auth_keys__ is None:
         status_code, js = safe_json_request(method='GET',
-                                            url="{0}/.well-known/jwks.json".format(app_settings['auth_domain']))
+                                            url=app_settings['auth_keys_url'])
         if js:
             __auth_keys__ = js['keys']
     return __auth_keys__

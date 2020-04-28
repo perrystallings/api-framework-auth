@@ -20,19 +20,24 @@ def check_active_token(decoded_token, leeway):
         raise ExpiredSignatureError("Token Expired")
 
 
-def format_machine_token(user, issuer, audience, expiration_seconds, scopes: list = None):
+def format_access_token(user, machine_token: bool, issuer, audiences: list, expiration_seconds: int,
+                        scopes: list = None, **claims):
     from datetime import datetime, timedelta
     now = datetime.utcnow()
-    subject = '{0}@clients'.format(user)
+    if machine_token:
+        subject = '{0}@clients'.format(user)
+    else:
+        subject = user
     body = dict(
         iss=issuer,
         sub=subject,
         azp=user,
         iat=int(now.timestamp()),
-        aud=audience,
+        aud=audiences if len(audiences) > 1 else audiences[0],
         exp=int((now + timedelta(seconds=expiration_seconds)).timestamp()),
         scope=' '.join(scopes if scopes is not None else []),
-        gty='client-credentials'
+        gty='client-credentials',
+        **claims
     )
     return {k: v for k, v in body.items() if v}
 
@@ -54,7 +59,7 @@ def get_rsa_key(token, auth_keys):
     return rsa_key
 
 
-def decode_token(token, auth_keys, audiences, issuers, leeway=10*60):
+def decode_token(token, auth_keys, audiences, issuers, leeway=10 * 60):
     from jose import jwt
     import itertools
 
